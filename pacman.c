@@ -1,14 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "pacman.h"
 #include "mapa.h"
+#include "ui.h"
 
 MAPA m;
 POSICAO heroi;
+int tempilula = 0;
 
 int acabou() {
-	return 0;
+	POSICAO pos;
+
+	int ganhou = !encontramapa(&m, &pos, HEROI);
+	int perdeu = !encontramapa(&m, &pos, FANTASMA);
+
+	return ganhou || perdeu;
 }
 
 int ehdirecao(char direcao) {
@@ -42,26 +50,73 @@ void move(char direcao) {
 			break;
 	}
 
-	if(!ehvalida(&m, proximox, proximoy))
+	if (!podeandar(&m, HEROI, proximox, proximoy))
 		return;
 
-	if(!ehvazia(&m, proximox, proximoy))
-		return;
+	if (ehpersonagem(&m, PILULA, proximox, proximoy)) {
+		tempilula = 1;
+	}
 
 	andanomapa(&m, heroi.x, heroi.y, proximox, proximoy);
 	heroi.x = proximox;
 	heroi.y = proximoy;
 }
 
-void praondeofantasmavai(int xatual, int yatual, int xdestino, int ydestino) {
+void explodepilula() {
+
+	if (tempilula) {
+		explodepilula2(heroi.x, heroi.y, 0, 1, 3);
+		explodepilula2(heroi.x, heroi.y, 0, -1, 3);
+		explodepilula2(heroi.x, heroi.y, 1, 0, 3);
+		explodepilula2(heroi.x, heroi.y, -1, 0, 3);
+
+		tempilula = 0;
+	}
+
+	return;
+}
+
+void explodepilula2(int xatual, int yatual,
+	int somax, int somay, int qtd) {
+
+	if (qtd == 0) return;
+
+	int novox = xatual + somax;
+	int novoy = yatual + somay;
+
+	if (!ehvalida(&m, novox, novoy)) return;
+	if (ehparede(&m, novox, novoy)) return;
+	
+	m.matriz[novox][novoy] = VAZIO;
+	explodepilula2(novox, novoy, somax, somay, qtd - 1);
+}
+
+int praondeofantasmavai(int xatual, int yatual,
+	int* xdestino, int* ydestino) {
 
 	int opcoes[4][2] = {
-		{ , },
-		{ , },
-		{ , },
-		{ , }
+		{ xatual , yatual + 1 }, //DIREITA
+		{ xatual , yatual - 1}, // ESQUERDA
+		{ xatual + 1 , yatual}, // CIMA
+		{ xatual - 1 , yatual} // BAIXO
 	};
 
+	srand(time(0));
+
+	for (int i = 0; i < 10; ++i) {
+		int posicao = rand() % 4;
+
+		if(podeandar(&m, FANTASMA,
+			opcoes[posicao][0], opcoes[posicao][1])) {
+
+			*xdestino = opcoes[posicao][0];
+			*ydestino = opcoes[posicao][1];
+
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 void fantasmas() {
@@ -74,11 +129,20 @@ void fantasmas() {
 
 	for(int i = 0; i < copia.linhas; i++) {
 		for(int j = 0; j < copia.colunas; j++) {
+
 			if(copia.matriz[i][j] == FANTASMA) {
-				if(ehvalida(&m, i, j+1) && ehvazia(&m, i, j+1)) {
-					andanomapa(&m, i, j, i, j+1);
+
+				int xdestino;
+				int ydestino;
+
+				int encontrou = praondeofantasmavai(i, j,
+					&xdestino, &ydestino);
+
+				if(encontrou) {
+					andanomapa(&m, i, j, xdestino, ydestino);
 				}
 			}
+
 		}
 	}
 
@@ -91,12 +155,17 @@ int main() {
 	encontramapa(&m, &heroi, HEROI);
 
 	do {
+
+		// printf("Tem pílula ? %s\n", (tempilula ? "SIM" : "NÃO"));
+
 		imprimemapa(&m);
 
 		char comando;
 		scanf(" %c", &comando);
 
-		move(comando);
+		if(ehdirecao(comando)) move(comando);
+		if(comando == BOMBA) explodepilula();
+
 		fantasmas();
 
 	} while (!acabou());

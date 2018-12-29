@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mapa.h"
+#include "ui.h"
 
 void lemapa(MAPA* m) {
 	FILE* f;
@@ -37,37 +38,45 @@ void liberamapa(MAPA* m) {
 	free(m->matriz);
 }
 
-void imprimemapa(MAPA* m) {
-	for(int i = 0; i < m->linhas; i++) {
-		printf("%s\n", m->matriz[i]);
-	}
-}
-
-void encontramapa(MAPA* m, POSICAO* p, char c) {
+int encontramapa(MAPA* m, POSICAO* p, char c) {
 
 	for(int i = 0; i < m->linhas; i++) {
 		for(int j = 0; j < m->colunas; j++) {
 			if(m->matriz[i][j] == c) {
 				p->x = i;
 				p->y = j;
-				return;
+				return 1;
 			}
 		}
 	}
 
+	return 0;
+}
+
+int podeandar(MAPA* m, char personagem, int x, int y) {
+	return
+	ehvalida(m, x, y) &&
+	!ehparede(m, x, y) &&
+	!ehpersonagem(m, personagem, x, y);
 }
 
 int ehvalida(MAPA* m, int x, int y) {
-	if(x >= m->linhas) 
+	if(x >= m->linhas)
 		return 0;
-	if(y >= m->colunas) 
+	if(y >= m->colunas)
 		return 0;
 
-	return 1;	
+	return 1;
 }
 
-int ehvazia(MAPA* m, int x, int y) {
-	return m->matriz[x][y] == VAZIO;
+int ehparede(MAPA* m, int x, int y) {
+	return
+	m->matriz[x][y] == PAREDE_VERTICAL ||
+	m->matriz[x][y] == PAREDE_HORIZONTAL;
+}
+
+int ehpersonagem(MAPA* m, char personagem, int x, int y) {
+	return m->matriz[x][y] == personagem;
 }
 
 void andanomapa(MAPA* m, int xorigem, int yorigem, 
@@ -76,7 +85,6 @@ void andanomapa(MAPA* m, int xorigem, int yorigem,
 	char personagem = m->matriz[xorigem][yorigem];
 	m->matriz[xdestino][ydestino] = personagem;
 	m->matriz[xorigem][yorigem] = VAZIO;
-
 }
 
 void copiamapa(MAPA* destino, MAPA* origem) {
